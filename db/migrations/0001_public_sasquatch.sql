@@ -1,0 +1,1 @@
+ALTER TABLE "capsula" ADD CONSTRAINT "capsula_nome_unique" UNIQUE("nome");
