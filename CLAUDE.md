@@ -387,6 +387,20 @@ teto) de `paradaPorErroDeGeracao` (parou antes, por erro numa chamada
 de geração), e `buscar-form.tsx` mostra uma mensagem diferente pra
 cada caso.
 
+Ainda no mesmo dia, `paradaPorErroDeGeracao` apareceu de verdade num
+teste real (15 tentativas, 1 só chegou em `pendente`) — o laço parava
+na 1ª falha de `gerarListaDePecas`, sem log nenhum do motivo (erro era
+descartado no `catch`, sem trilha pra depurar). Como saída de LLM já é
+tratada como não-confiável em todo o resto do pipeline (Zod valida e
+rejeita, nunca confia cegamente), uma falha isolada nessa chamada
+específica (JSON malformado, resposta sem array reconhecível, hiccup
+de rede) também não deveria encerrar a rodada inteira de uma vez.
+Corrigido com `gerarListaComRetentativas` (até 3 tentativas, espera
+curta entre elas) envolvendo a chamada — só depois de esgotar as 3 é
+que desiste de verdade — e `console.error` logando o motivo de cada
+falha (aparece nos logs de função do Vercel), pra não ficar cego de
+novo se voltar a acontecer.
+
 1. **Geração (OpenAI, 1 chamada)**: pede 7 peças "de conhecimento"
    (sem pesquisar) + 3 "de tendência atual" (baseadas numa busca por
    "tendências moda feminina [estilo] 2026") — a separação 7/3 é

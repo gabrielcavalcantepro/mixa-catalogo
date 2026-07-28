@@ -23,6 +23,42 @@ const META_PENDENTES_NA_FILA = 10;
 const TETO_TENTATIVAS = 30;
 const NUMERO_MINIMO_COMBINACOES = 2;
 const OBSERVACOES_RECENTES_LIMITE = 10;
+const MAX_TENTATIVAS_GERACAO_LISTA = 3;
+const ESPERA_ENTRE_RETENTATIVAS_MS = 1500;
+
+function aguardar(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Saída de LLM não é confiável por padrão (ver `gerar-lista.ts`) — uma
+ * falha isolada (JSON malformado, resposta sem array reconhecível,
+ * hiccup de rede) é normal e tipicamente transitória, não motivo pra
+ * desistir da rodada inteira de 1 vez. Tenta de novo (com espera curta
+ * entre tentativas) antes de propagar o erro pro chamador — que aí sim
+ * marca `paradaPorErroDeGeracao` e encerra o laço. Loga o motivo real
+ * de cada falha (`console.error`, visível nos logs de função do
+ * Vercel) — antes o erro era descartado silenciosamente, sem trilha
+ * nenhuma pra depurar se voltasse a acontecer.
+ */
+async function gerarListaComRetentativas(
+  opcoes: Parameters<typeof gerarListaDePecas>[0],
+): Promise<ItemGerado[]> {
+  let ultimoErro: unknown;
+  for (let tentativa = 1; tentativa <= MAX_TENTATIVAS_GERACAO_LISTA; tentativa++) {
+    try {
+      return await gerarListaDePecas(opcoes);
+    } catch (erro) {
+      ultimoErro = erro;
+      console.error(
+        `[pecas-ia] gerarListaDePecas falhou (tentativa ${tentativa}/${MAX_TENTATIVAS_GERACAO_LISTA}):`,
+        erro instanceof Error ? erro.message : erro,
+      );
+      if (tentativa < MAX_TENTATIVAS_GERACAO_LISTA) await aguardar(ESPERA_ENTRE_RETENTATIVAS_MS);
+    }
+  }
+  throw ultimoErro;
+}
 
 export type GerarCandidatosIaResultado = {
   tentativas: number;
@@ -103,7 +139,11 @@ async function inserirCandidato(
  * quando o laço tinha parado cedo por erro na geração, não por
  * exaustão de tentativa de verdade — por isso `tetoTentativasAtingido`
  * e `paradaPorErroDeGeracao` são campos distintos no retorno, não só
- * `metaAtingida`).
+ * `metaAtingida`). `gerarListaDePecas` roda via
+ * `gerarListaComRetentativas` (até 3 tentativas com espera curta entre
+ * elas) — uma falha isolada de LLM não deve encerrar a rodada inteira
+ * sozinha; só depois de esgotar as retentativas é que
+ * `paradaPorErroDeGeracao` é marcado de verdade.
  *
  * Roda como 1 Server Action síncrona (sem infra de fila neste projeto
  * ainda) — pode demorar por causa das chamadas de API externas em
@@ -147,7 +187,7 @@ export async function gerarCandidatosIaAction(
   while (pendentesNaFila < META_PENDENTES_NA_FILA && tentativas < TETO_TENTATIVAS) {
     let itens: ItemGerado[];
     try {
-      itens = await gerarListaDePecas({
+      itens = await gerarListaComRetentativas({
         nomeEstilo: perfil.nome,
         observacoesRecentes: observacoesRecentes.map((o) => o.texto),
         itensParaEvitar: nomesJaTentados,
