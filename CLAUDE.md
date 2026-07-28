@@ -371,6 +371,22 @@ isso; `buscar-form.tsx` mostra `toast.warning` com quantas tentativas
 foram usadas e quantas peças resultaram (nunca silencioso sobre isso).
 `toast.success` normal quando fecha os 10.
 
+`itensParaEvitar` é só instrução de prompt — sem garantia, e não cobre
+duplicata dentro do mesmo lote gerado numa única chamada. 1ª versão
+desse laço (mesmo dia) não tinha proteção nenhuma além disso e um
+teste real gerou peça repetida (2 linhas da "mesma" peça na fila) e
+fechou só 7 de 10. Corrigido com dedup por nome normalizado
+(`nomesJaTentadosNormalizados`, um `Set`) — peça já vista (mesma
+rodada ou rodada anterior) é pulada sem gastar tentativa nem virar
+linha na fila. Também corrigido nessa mesma leva: o retorno tinha só
+`metaAtingida`, e a mensagem de "teto atingido" aparecia mesmo quando
+o laço tinha parado cedo por `gerarListaDePecas` ter lançado erro (não
+por ter de fato gasto as 30 tentativas) — enganoso. Agora o retorno
+distingue `tetoTentativasAtingido` (tentativas de verdade chegou no
+teto) de `paradaPorErroDeGeracao` (parou antes, por erro numa chamada
+de geração), e `buscar-form.tsx` mostra uma mensagem diferente pra
+cada caso.
+
 1. **Geração (OpenAI, 1 chamada)**: pede 7 peças "de conhecimento"
    (sem pesquisar) + 3 "de tendência atual" (baseadas numa busca por
    "tendências moda feminina [estilo] 2026") — a separação 7/3 é
@@ -429,8 +445,12 @@ foram usadas e quantas peças resultaram (nunca silencioso sobre isso).
    (`gemini-client.ts` foi deletado, `@google/genai` removido de
    `package.json`, `GEMINI_API_KEY` não é mais lida em lugar nenhum).
 3. **Avaliação de imagem (OpenAI, visão)**: a foto bate com a peça
-   pedida? Não bate → `rejeitado`, não chega no admin. Não muda nessa
-   troca — já era OpenAI.
+   pedida, **e** o fundo é neutro (padrão de loja — peça isolada ou
+   pessoa vestindo a peça, mas sem ambiente/fundo bagunçado, ver
+   `AvaliacaoImagem.fundoNeutro` em `avaliar-imagem.ts`; adicionado
+   2026-07-28 depois de um teste real trazer 1 foto com fundo confuso
+   na fila)? Qualquer um dos 2 falhar → `rejeitado`, não chega no
+   admin.
 
    **Também corrige a cor (2026-07-28)**: `corTipo`/`corValor` são
    decididos inteiramente no passo 1, antes de qualquer foto existir —

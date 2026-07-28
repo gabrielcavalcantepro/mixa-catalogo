@@ -29,9 +29,17 @@ export function BuscarForm({ perfis }: { perfis: PerfilEstilo[] }) {
           toast.success(
             `${resultado.pendentesNaFila} peça(s) na fila de revisão (${resultado.tentativas} tentativa(s), ${resultado.rejeitadasAuto} rejeitada(s) automaticamente).`,
           );
+        } else if (resultado.tetoTentativasAtingido) {
+          toast.warning(
+            `Teto de ${resultado.tetoTentativas} tentativas atingido antes de completar a meta de 10: só ${resultado.pendentesNaFila} peça(s) chegaram na fila de revisão (${resultado.rejeitadasAuto} rejeitada(s) automaticamente).`,
+          );
+        } else if (resultado.paradaPorErroDeGeracao) {
+          toast.warning(
+            `Geração interrompida antes do teto de ${resultado.tetoTentativas} (erro ao tentar gerar mais peças) — ${resultado.pendentesNaFila} peça(s) na fila de revisão de ${resultado.tentativas} tentativa(s). Tente gerar de novo pra continuar.`,
+          );
         } else {
           toast.warning(
-            `Teto de ${resultado.tentativas} tentativa(s) atingido antes de completar a meta: só ${resultado.pendentesNaFila} peça(s) chegaram na fila de revisão (${resultado.rejeitadasAuto} rejeitada(s) automaticamente).`,
+            `${resultado.pendentesNaFila} peça(s) na fila de revisão de ${resultado.tentativas} tentativa(s) — meta de 10 não atingida.`,
           );
         }
         router.refresh();

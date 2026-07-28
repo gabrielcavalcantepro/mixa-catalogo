@@ -26,9 +26,12 @@ const OBSERVACOES_RECENTES_LIMITE = 10;
 
 export type GerarCandidatosIaResultado = {
   tentativas: number;
+  tetoTentativas: number;
   pendentesNaFila: number;
   rejeitadasAuto: number;
   metaAtingida: boolean;
+  tetoTentativasAtingido: boolean;
+  paradaPorErroDeGeracao: boolean;
 };
 
 async function inserirCandidato(
@@ -91,6 +94,16 @@ async function inserirCandidato(
  * chegar em 10, a função devolve normalmente com o que conseguiu
  * (`metaAtingida: false`) — nunca lança erro só por não ter fechado a
  * meta; quem chama (`buscar-form.tsx`) decide como avisar disso.
+ * `itensParaEvitar` é só instrução de prompt (sem garantia, e não cobre
+ * duplicata dentro do mesmo lote) — por isso existe também o dedup por
+ * nome normalizado (`nomesJaTentadosNormalizados`) logo abaixo, que é
+ * o que de fato impede peça repetida de virar 2 linhas na fila ou
+ * gastar 2 tentativas do teto (2026-07-28: 1ª versão desse laço não
+ * tinha esse dedup e a mensagem de "teto atingido" aparecia mesmo
+ * quando o laço tinha parado cedo por erro na geração, não por
+ * exaustão de tentativa de verdade — por isso `tetoTentativasAtingido`
+ * e `paradaPorErroDeGeracao` são campos distintos no retorno, não só
+ * `metaAtingida`).
  *
  * Roda como 1 Server Action síncrona (sem infra de fila neste projeto
  * ainda) — pode demorar por causa das chamadas de API externas em
@@ -127,7 +140,9 @@ export async function gerarCandidatosIaAction(
   let tentativas = 0;
   let pendentesNaFila = 0;
   let rejeitadasAuto = 0;
+  let paradaPorErroDeGeracao = false;
   const nomesJaTentados: string[] = [];
+  const nomesJaTentadosNormalizados = new Set<string>();
 
   while (pendentesNaFila < META_PENDENTES_NA_FILA && tentativas < TETO_TENTATIVAS) {
     let itens: ItemGerado[];
@@ -138,11 +153,21 @@ export async function gerarCandidatosIaAction(
         itensParaEvitar: nomesJaTentados,
       });
     } catch {
+      paradaPorErroDeGeracao = true;
       break;
     }
 
     for (const item of itens) {
       if (pendentesNaFila >= META_PENDENTES_NA_FILA || tentativas >= TETO_TENTATIVAS) break;
+
+      // Repetição: o `itensParaEvitar` acima é só instrução de prompt,
+      // sem garantia (nem cobre duplicata dentro do mesmo lote) — este
+      // check é o que de fato impede a mesma peça de virar 2 linhas na
+      // fila ou gastar 2 tentativas do teto de 30.
+      const nomeNormalizado = item.nome.trim().toLowerCase();
+      if (nomesJaTentadosNormalizados.has(nomeNormalizado)) continue;
+      nomesJaTentadosNormalizados.add(nomeNormalizado);
+
       tentativas++;
       nomesJaTentados.push(item.nome);
       const candidatoId = randomUUID();
@@ -177,6 +202,16 @@ export async function gerarCandidatosIaAction(
           await inserirCandidato(candidatoId, perfilEstiloId, item, "rejeitado", {
             capsulaId: capsulaIdPadrao,
             motivo: "Avaliação de imagem: não corresponde à peça pedida.",
+            imagemUrl,
+            linkOrigemImagem: encontrada.sourceUri,
+          });
+          rejeitadasAuto++;
+          continue;
+        }
+        if (!avaliacao.fundoNeutro) {
+          await inserirCandidato(candidatoId, perfilEstiloId, item, "rejeitado", {
+            capsulaId: capsulaIdPadrao,
+            motivo: "Avaliação de imagem: fundo não é neutro (não é padrão de loja).",
             imagemUrl,
             linkOrigemImagem: encontrada.sourceUri,
           });
@@ -233,8 +268,11 @@ export async function gerarCandidatosIaAction(
   revalidatePath("/pecas-ia");
   return {
     tentativas,
+    tetoTentativas: TETO_TENTATIVAS,
     pendentesNaFila,
     rejeitadasAuto,
     metaAtingida: pendentesNaFila >= META_PENDENTES_NA_FILA,
+    tetoTentativasAtingido: tentativas >= TETO_TENTATIVAS,
+    paradaPorErroDeGeracao,
   };
 }
