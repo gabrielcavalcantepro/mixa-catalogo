@@ -19,14 +19,16 @@ import { buscarImagemDaPeca } from "../_lib/buscar-imagem";
 import { contarCombinacoes } from "../_lib/contar-combinacoes";
 import { gerarListaDePecas, type ItemGerado } from "../_lib/gerar-lista";
 
-const QUANTIDADE_POR_RODADA = 10;
-const NUMERO_MINIMO_COMBINACOES = 5;
+const META_PENDENTES_NA_FILA = 10;
+const TETO_TENTATIVAS = 30;
+const NUMERO_MINIMO_COMBINACOES = 2;
 const OBSERVACOES_RECENTES_LIMITE = 10;
 
 export type GerarCandidatosIaResultado = {
-  geradas: number;
+  tentativas: number;
   pendentesNaFila: number;
   rejeitadasAuto: number;
+  metaAtingida: boolean;
 };
 
 async function inserirCandidato(
@@ -73,17 +75,27 @@ async function inserirCandidato(
 
 /**
  * Pipeline completo da busca por peça assistida por IA, pro perfil de
- * estilo escolhido: gera 10 peças (Gemini) → por peça, busca+baixa
- * imagem (Gemini) → avalia se a imagem bate (OpenAI, visão) → conta
- * combinações no catálogo atual (`contarCombinacoes`, regra pura, sem
- * IA) → só o que passa dos 3 filtros entra `pendente` na fila de
- * revisão; o resto vira `rejeitado` com o motivo automático. Cada
- * peça é tratada isoladamente (try/catch) — 1 falhar não derruba as
- * outras 9.
+ * estilo escolhido: gera peças (OpenAI) → por peça, busca+baixa imagem
+ * (OpenAI) → avalia se a imagem bate e extrai a cor real (OpenAI,
+ * visão) → conta combinações no catálogo atual (`contarCombinacoes`,
+ * regra pura, sem IA) → só o que passa dos 3 filtros entra `pendente`
+ * na fila de revisão; o resto vira `rejeitado` com o motivo automático.
+ * Cada peça é tratada isoladamente (try/catch) — 1 falhar não derruba
+ * as outras.
+ *
+ * Meta, não tentativa única: continua gerando lotes novos (chamando
+ * `gerarListaDePecas` de novo, passando os nomes já tentados pra
+ * reduzir repetição) até `META_PENDENTES_NA_FILA` (10) peças
+ * aprovadas de verdade, ou até `TETO_TENTATIVAS` (30) peças candidatas
+ * tentadas no total — o que vier primeiro. Se o teto for atingido sem
+ * chegar em 10, a função devolve normalmente com o que conseguiu
+ * (`metaAtingida: false`) — nunca lança erro só por não ter fechado a
+ * meta; quem chama (`buscar-form.tsx`) decide como avisar disso.
  *
  * Roda como 1 Server Action síncrona (sem infra de fila neste projeto
  * ainda) — pode demorar por causa das chamadas de API externas em
- * sequência; ver CLAUDE.md.
+ * sequência, e agora potencialmente mais de 10 tentativas; ver
+ * CLAUDE.md.
  */
 export async function gerarCandidatosIaAction(
   perfilEstiloId: string,
@@ -112,88 +124,117 @@ export async function gerarCandidatosIaAction(
     perfis: p.estilos.map((e) => e.perfilEstiloId),
   }));
 
-  const itens = await gerarListaDePecas({
-    nomeEstilo: perfil.nome,
-    observacoesRecentes: observacoesRecentes.map((o) => o.texto),
-  });
-
+  let tentativas = 0;
   let pendentesNaFila = 0;
   let rejeitadasAuto = 0;
+  const nomesJaTentados: string[] = [];
 
-  for (const item of itens.slice(0, QUANTIDADE_POR_RODADA)) {
-    const candidatoId = randomUUID();
-
+  while (pendentesNaFila < META_PENDENTES_NA_FILA && tentativas < TETO_TENTATIVAS) {
+    let itens: ItemGerado[];
     try {
-      const encontrada = await buscarImagemDaPeca(`${item.nome}, cor ${item.corValor}`);
-      if (!encontrada) {
-        await inserirCandidato(candidatoId, perfilEstiloId, item, "rejeitado", {
-          capsulaId: capsulaIdPadrao,
-          motivo: "Nenhuma imagem encontrada na busca.",
-        });
-        rejeitadasAuto++;
-        continue;
-      }
+      itens = await gerarListaDePecas({
+        nomeEstilo: perfil.nome,
+        observacoesRecentes: observacoesRecentes.map((o) => o.texto),
+        itensParaEvitar: nomesJaTentados,
+      });
+    } catch {
+      break;
+    }
 
-      const imagemUrl = await baixarEHospedarImagem(encontrada.imageUri, `pecas-ia/${candidatoId}`);
-      if (!imagemUrl) {
-        await inserirCandidato(candidatoId, perfilEstiloId, item, "rejeitado", {
-          capsulaId: capsulaIdPadrao,
-          motivo: "Falha ao baixar/hospedar a imagem encontrada.",
-          linkOrigemImagem: encontrada.sourceUri,
-        });
-        rejeitadasAuto++;
-        continue;
-      }
+    for (const item of itens) {
+      if (pendentesNaFila >= META_PENDENTES_NA_FILA || tentativas >= TETO_TENTATIVAS) break;
+      tentativas++;
+      nomesJaTentados.push(item.nome);
+      const candidatoId = randomUUID();
 
-      const bate = await avaliarImagemBateComPeca(imagemUrl, item.nome);
-      if (!bate) {
-        await inserirCandidato(candidatoId, perfilEstiloId, item, "rejeitado", {
-          capsulaId: capsulaIdPadrao,
-          motivo: "Avaliação de imagem: não corresponde à peça pedida.",
-          imagemUrl,
-          linkOrigemImagem: encontrada.sourceUri,
-        });
-        rejeitadasAuto++;
-        continue;
-      }
+      try {
+        const encontrada = await buscarImagemDaPeca(`${item.nome}, cor ${item.corValor}`);
+        if (!encontrada) {
+          await inserirCandidato(candidatoId, perfilEstiloId, item, "rejeitado", {
+            capsulaId: capsulaIdPadrao,
+            motivo: "Nenhuma imagem encontrada na busca.",
+          });
+          rejeitadasAuto++;
+          continue;
+        }
 
-      const numeroCombinacoes = contarCombinacoes(
-        {
-          slot: item.slot,
-          climas: item.pesoClima,
-          ocasioes: item.ocasiaoBase,
-          perfis: [perfilEstiloId],
-        },
-        pecasParaGeracao,
-      );
-      if (numeroCombinacoes < NUMERO_MINIMO_COMBINACOES) {
-        await inserirCandidato(candidatoId, perfilEstiloId, item, "rejeitado", {
+        const imagemUrl = await baixarEHospedarImagem(
+          encontrada.imageUri,
+          `pecas-ia/${candidatoId}`,
+        );
+        if (!imagemUrl) {
+          await inserirCandidato(candidatoId, perfilEstiloId, item, "rejeitado", {
+            capsulaId: capsulaIdPadrao,
+            motivo: "Falha ao baixar/hospedar a imagem encontrada.",
+            linkOrigemImagem: encontrada.sourceUri,
+          });
+          rejeitadasAuto++;
+          continue;
+        }
+
+        const avaliacao = await avaliarImagemBateComPeca(imagemUrl, item.nome);
+        if (!avaliacao.bate) {
+          await inserirCandidato(candidatoId, perfilEstiloId, item, "rejeitado", {
+            capsulaId: capsulaIdPadrao,
+            motivo: "Avaliação de imagem: não corresponde à peça pedida.",
+            imagemUrl,
+            linkOrigemImagem: encontrada.sourceUri,
+          });
+          rejeitadasAuto++;
+          continue;
+        }
+
+        // A cor real observada na foto substitui o chute do passo 1
+        // (gerarListaDePecas nunca viu imagem nenhuma) — ver CLAUDE.md.
+        const itemComCorReal: ItemGerado = {
+          ...item,
+          corValor: avaliacao.corValor ?? item.corValor,
+          corTipo: avaliacao.corTipo ?? item.corTipo,
+        };
+
+        const numeroCombinacoes = contarCombinacoes(
+          {
+            slot: itemComCorReal.slot,
+            climas: itemComCorReal.pesoClima,
+            ocasioes: itemComCorReal.ocasiaoBase,
+            perfis: [perfilEstiloId],
+          },
+          pecasParaGeracao,
+        );
+        if (numeroCombinacoes < NUMERO_MINIMO_COMBINACOES) {
+          await inserirCandidato(candidatoId, perfilEstiloId, itemComCorReal, "rejeitado", {
+            capsulaId: capsulaIdPadrao,
+            motivo: `Poucas combinações no catálogo atual (${numeroCombinacoes}).`,
+            imagemUrl,
+            linkOrigemImagem: encontrada.sourceUri,
+            numeroCombinacoes,
+          });
+          rejeitadasAuto++;
+          continue;
+        }
+
+        await inserirCandidato(candidatoId, perfilEstiloId, itemComCorReal, "pendente", {
           capsulaId: capsulaIdPadrao,
-          motivo: `Poucas combinações no catálogo atual (${numeroCombinacoes}).`,
           imagemUrl,
           linkOrigemImagem: encontrada.sourceUri,
           numeroCombinacoes,
         });
+        pendentesNaFila++;
+      } catch (erro) {
+        await inserirCandidato(candidatoId, perfilEstiloId, item, "rejeitado", {
+          capsulaId: capsulaIdPadrao,
+          motivo: erro instanceof Error ? `Erro: ${erro.message}` : "Erro desconhecido ao processar.",
+        });
         rejeitadasAuto++;
-        continue;
       }
-
-      await inserirCandidato(candidatoId, perfilEstiloId, item, "pendente", {
-        capsulaId: capsulaIdPadrao,
-        imagemUrl,
-        linkOrigemImagem: encontrada.sourceUri,
-        numeroCombinacoes,
-      });
-      pendentesNaFila++;
-    } catch (erro) {
-      await inserirCandidato(candidatoId, perfilEstiloId, item, "rejeitado", {
-        capsulaId: capsulaIdPadrao,
-        motivo: erro instanceof Error ? `Erro: ${erro.message}` : "Erro desconhecido ao processar.",
-      });
-      rejeitadasAuto++;
     }
   }
 
   revalidatePath("/pecas-ia");
-  return { geradas: itens.length, pendentesNaFila, rejeitadasAuto };
+  return {
+    tentativas,
+    pendentesNaFila,
+    rejeitadasAuto,
+    metaAtingida: pendentesNaFila >= META_PENDENTES_NA_FILA,
+  };
 }

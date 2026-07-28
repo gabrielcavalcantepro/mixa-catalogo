@@ -25,7 +25,11 @@ const SLOTS_SEM_CLIMA = ["cinto", "bolsa", "acessorio_outro"];
  * 7 peças "de conhecimento" (sem pesquisar) de 3 peças "de tendência
  * atual" (baseadas na busca) — essa separação é instrução de prompt,
  * não 2 chamadas de API, porque o pedido era "1 busca só". Observações
- * recentes do curador (se houver) entram como contexto.
+ * recentes do curador (se houver) entram como contexto. `itensParaEvitar`
+ * (opcional) lista nomes já tentados numa mesma rodada de geração — usado
+ * pelo laço em `gerar-candidatos-ia.ts` que chama esta função de novo
+ * quando o lote anterior não rendeu peças `pendente` suficientes, pra
+ * reduzir a chance do modelo repetir a mesma peça já tentada.
  *
  * Antes usava Gemini (grounding com Google Search) — trocado por
  * exigir carregar saldo de faturamento na conta Google pra liberar a
@@ -40,6 +44,7 @@ const SLOTS_SEM_CLIMA = ["cinto", "bolsa", "acessorio_outro"];
 export async function gerarListaDePecas(opcoes: {
   nomeEstilo: string;
   observacoesRecentes: string[];
+  itensParaEvitar?: string[];
 }): Promise<ItemGerado[]> {
   const openai = obterClienteOpenAI();
 
@@ -48,9 +53,14 @@ export async function gerarListaDePecas(opcoes: {
       ? `Observações do curador sobre buscas anteriores (leve em conta ao escolher as peças):\n${opcoes.observacoesRecentes.map((o) => `- ${o}`).join("\n")}\n\n`
       : "";
 
+  const blocoEvitar =
+    opcoes.itensParaEvitar && opcoes.itensParaEvitar.length > 0
+      ? `Peças já tentadas nesta busca (não repita nenhuma delas, gere 10 diferentes):\n${opcoes.itensParaEvitar.map((n) => `- ${n}`).join("\n")}\n\n`
+      : "";
+
   const prompt = `Você é um curador de moda feminina. Gere uma lista de 10 peças de roupa/acessório pro perfil de estilo "${opcoes.nomeEstilo}".
 
-${blocoObservacoes}Regras:
+${blocoObservacoes}${blocoEvitar}Regras:
 - As primeiras 7 peças vêm do seu conhecimento geral de moda clássica e atemporal — não pesquise nada pra elas.
 - As últimas 3 peças devem ser baseadas numa busca atual por "tendências moda feminina ${opcoes.nomeEstilo} 2026" — use a ferramenta de busca disponível pra isso antes de decidir essas 3.
 - Cada peça precisa ter exatamente estes campos:

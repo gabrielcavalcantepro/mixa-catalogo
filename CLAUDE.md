@@ -355,9 +355,21 @@ reaproveitado pelos 2 fluxos, planilha e IA) fazem o upload quando
 precisam, antes de chamar `inserirPeca`.
 
 **Pipeline** (`_actions/gerar-candidatos-ia.ts`, 1 Server Action
-síncrona pra até 10 peças, por perfil de estilo escolhido pelo admin —
-nunca assume que são 7 fixos no código, usa o que
-`perfisEstilo` devolver):
+síncrona, por perfil de estilo escolhido pelo admin — nunca assume que
+são 7 fixos no código, usa o que `perfisEstilo` devolver). É meta, não
+tentativa única (decisão de 2026-07-28): continua gerando lotes novos
+de peça (chamando o passo 1 de novo, passando os nomes já tentados
+nesta rodada como `itensParaEvitar` pra reduzir repetição) até
+`META_PENDENTES_NA_FILA` (10) peças aprovadas de verdade na fila, ou
+até `TETO_TENTATIVAS` (30) peças candidatas tentadas no total — o que
+vier primeiro. Isso existe porque a versão antiga (10 tentativas,
+aceita o que sobrar) deixava a fila vazia ou quase vazia sempre que o
+catálogo ainda era pequeno (peça nova não tinha com o que combinar) —
+ver passo 4. Bateu o teto sem fechar 10? A action devolve normalmente
+com o que conseguiu (`metaAtingida: false`) — nunca lança erro só por
+isso; `buscar-form.tsx` mostra `toast.warning` com quantas tentativas
+foram usadas e quantas peças resultaram (nunca silencioso sobre isso).
+`toast.success` normal quando fecha os 10.
 
 1. **Geração (OpenAI, 1 chamada)**: pede 7 peças "de conhecimento"
    (sem pesquisar) + 3 "de tendência atual" (baseadas numa busca por
@@ -419,20 +431,39 @@ nunca assume que são 7 fixos no código, usa o que
 3. **Avaliação de imagem (OpenAI, visão)**: a foto bate com a peça
    pedida? Não bate → `rejeitado`, não chega no admin. Não muda nessa
    troca — já era OpenAI.
+
+   **Também corrige a cor (2026-07-28)**: `corTipo`/`corValor` são
+   decididos inteiramente no passo 1, antes de qualquer foto existir —
+   e não eram conferidos contra a imagem de verdade (`avaliarImagemBateComPeca`
+   só recebia `item.nome`, nunca a cor, e o prompt só perguntava se a
+   imagem "parecia" com o item, nada sobre cor). Corrigido estendendo a
+   mesma chamada de visão do passo 3 pra também extrair a cor real
+   observada na foto (`AvaliacaoImagem.corValor`/`corTipo`, ver
+   `avaliar-imagem.ts`) — o orquestrador (`gerar-candidatos-ia.ts`)
+   monta `itemComCorReal` substituindo os campos de cor do item pelo
+   que a visão viu antes de gravar o candidato (`pendente` ou
+   `rejeitado` por combinação insuficiente), não pelo que o passo 1
+   imaginou. Combinação (passo 4) não usa cor, então a ordem não
+   importa pra esse cálculo.
 4. **Checagem de combinação (regra, sem IA)**:
    `contarCombinacoes` — monta o catálogo real + a peça hipotética
    (id temporário), chama `gerarCandidatos` com **assinaturas vazias
    de propósito** (conta toda combinação válida possível, não só as
    inéditas) e conta em quantos candidatos resultantes o id
-   hipotético aparece. `< 5` → `rejeitado` com o número no motivo.
+   hipotético aparece. `< 2` → `rejeitado` com o número no motivo
+   (`NUMERO_MINIMO_COMBINACOES`; era `< 5` até 2026-07-28 — baixado pra
+   não travar estilo com catálogo ainda pequeno, onde peça nova
+   dificilmente teria 5+ combinações ainda, mas 2+ já é combinação
+   genuína o suficiente pra valer revisão manual).
 5. **O que sobra** vira `pendente` na fila de revisão, com
    `numeroCombinacoes` guardado (mostrado como badge na revisão).
 
 Cada peça é isolada (try/catch) — 1 falhar vira `rejeitado`/motivo de
-erro, não derruba as outras 9. **Risco assumido**: é 1 Server Action
-síncrona com várias chamadas de API externa em sequência — pode
-demorar; sem infra de fila neste projeto ainda, próxima melhoria se
-esbarrar em timeout de plataforma.
+erro, não derruba as outras. **Risco assumido**: é 1 Server Action
+síncrona com várias chamadas de API externa em sequência, agora
+potencialmente mais de 10 tentativas por causa do laço de meta acima —
+pode demorar; sem infra de fila neste projeto ainda, próxima melhoria
+se esbarrar em timeout de plataforma.
 
 **Schema** (`db/schema/peca-candidato-ia.ts`,
 `db/schema/busca-ia-observacao.ts`): `peca_candidato_ia` espelha

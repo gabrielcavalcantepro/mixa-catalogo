@@ -25,9 +25,15 @@ export function BuscarForm({ perfis }: { perfis: PerfilEstilo[] }) {
     startTransition(async () => {
       try {
         const resultado = await gerarCandidatosIaAction(perfilEstiloId);
-        toast.success(
-          `${resultado.pendentesNaFila} peça(s) na fila de revisão, ${resultado.rejeitadasAuto} rejeitada(s) automaticamente (de ${resultado.geradas} geradas).`,
-        );
+        if (resultado.metaAtingida) {
+          toast.success(
+            `${resultado.pendentesNaFila} peça(s) na fila de revisão (${resultado.tentativas} tentativa(s), ${resultado.rejeitadasAuto} rejeitada(s) automaticamente).`,
+          );
+        } else {
+          toast.warning(
+            `Teto de ${resultado.tentativas} tentativa(s) atingido antes de completar a meta: só ${resultado.pendentesNaFila} peça(s) chegaram na fila de revisão (${resultado.rejeitadasAuto} rejeitada(s) automaticamente).`,
+          );
+        }
         router.refresh();
       } catch (erro) {
         toast.error(erro instanceof Error ? erro.message : "Erro ao gerar candidatos.");
