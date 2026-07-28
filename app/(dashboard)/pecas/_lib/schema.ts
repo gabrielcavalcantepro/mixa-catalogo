@@ -5,12 +5,21 @@ import { corTipoEnum, ocasiaoEnum, pesoClimaEnum, slotEnum } from "@/db/schema";
  * Só esses slots têm clima — cinto, bolsa e acessório-outro não têm
  * "peso de clima" (não faz sentido pra acessório). Usado tanto na
  * validação do servidor quanto pra esconder o campo no form.
+ *
+ * `sobreposicao` (casaco/blazer/cardigã) entrou em 2026-07-28 — não
+ * tinha clima desde a implementação original, o que não fazia sentido
+ * de domínio (peça de sobreposição pesada não serve pro calor);
+ * decisão do usuário ao notar o comportamento na revisão de candidato
+ * da IA. Peça de sobreposição já cadastrada sem clima continua como
+ * está até ser editada (sem backfill automático) — só passa a exigir
+ * clima em cadastro/edição novos daqui pra frente.
  */
 export const SLOTS_COM_CLIMA = [
   "parte_de_cima",
   "parte_de_baixo",
   "peca_unica",
   "calcado",
+  "sobreposicao",
 ] as const;
 
 export const pecaSchema = z

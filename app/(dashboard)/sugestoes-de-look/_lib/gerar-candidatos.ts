@@ -1,7 +1,18 @@
 import { calcularFingerprint } from "./calcular-fingerprint";
 
-/** Duplicado de pecas/_lib/schema.ts de propósito (fatia autocontida). */
-const SLOTS_COM_CLIMA = ["parte_de_cima", "parte_de_baixo", "peca_unica", "calcado"] as const;
+/**
+ * Duplicado de pecas/_lib/schema.ts de propósito (fatia autocontida).
+ * `sobreposicao` entrou em 2026-07-28, ver comentário na fonte —
+ * continua em SLOTS_OPCIONAIS também (ter clima e ser opcional numa
+ * combinação são propriedades independentes).
+ */
+const SLOTS_COM_CLIMA = [
+  "parte_de_cima",
+  "parte_de_baixo",
+  "peca_unica",
+  "calcado",
+  "sobreposicao",
+] as const;
 
 const SLOTS_OPCIONAIS = ["sobreposicao", "cinto", "bolsa", "acessorio_outro"] as const;
 

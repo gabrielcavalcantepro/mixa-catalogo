@@ -1,8 +1,15 @@
 /**
  * Só esses slots têm clima — duplicado de pecas/_lib/schema.ts de
  * propósito (cada fatia fica autocontida, ver plano de arquitetura).
+ * `sobreposicao` entrou em 2026-07-28, ver comentário na fonte.
  */
-const SLOTS_COM_CLIMA = ["parte_de_cima", "parte_de_baixo", "peca_unica", "calcado"] as const;
+const SLOTS_COM_CLIMA = [
+  "parte_de_cima",
+  "parte_de_baixo",
+  "peca_unica",
+  "calcado",
+  "sobreposicao",
+] as const;
 
 /**
  * Clima de um look é derivado — interseção dos climas das peças que têm

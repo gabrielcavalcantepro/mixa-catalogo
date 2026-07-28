@@ -72,7 +72,8 @@ export type GerarCandidatosIaResultado = {
 
 async function inserirCandidato(
   id: string,
-  perfilEstiloId: string,
+  perfilEstiloIdOriginal: string,
+  perfisEstiloIdsParaJuncao: string[],
   item: ItemGerado,
   status: "pendente" | "rejeitado",
   opcoes: {
@@ -86,7 +87,7 @@ async function inserirCandidato(
   await db.transaction(async (tx) => {
     await tx.insert(pecaCandidatosIa).values({
       id,
-      perfilEstiloId,
+      perfilEstiloId: perfilEstiloIdOriginal,
       status,
       motivoRejeicaoAutomatica: opcoes.motivo,
       nome: item.nome,
@@ -108,19 +109,33 @@ async function inserirCandidato(
     await tx
       .insert(pecaCandidatoIaOcasiaoBase)
       .values(item.ocasiaoBase.map((o) => ({ candidatoId: id, ocasiao: o })));
-    await tx.insert(pecaCandidatoIaEstilo).values({ candidatoId: id, perfilEstiloId });
+    await tx
+      .insert(pecaCandidatoIaEstilo)
+      .values(perfisEstiloIdsParaJuncao.map((perfilEstiloId) => ({ candidatoId: id, perfilEstiloId })));
   });
 }
 
 /**
  * Pipeline completo da busca por peça assistida por IA, pro perfil de
  * estilo escolhido: gera peças (OpenAI) → por peça, busca+baixa imagem
- * (OpenAI) → avalia se a imagem bate e extrai a cor real (OpenAI,
- * visão) → conta combinações no catálogo atual (`contarCombinacoes`,
- * regra pura, sem IA) → só o que passa dos 3 filtros entra `pendente`
- * na fila de revisão; o resto vira `rejeitado` com o motivo automático.
- * Cada peça é tratada isoladamente (try/catch) — 1 falhar não derruba
- * as outras.
+ * (OpenAI) → avalia se a imagem bate, extrai a cor real e julga quais
+ * perfis de estilo (de todos os cadastrados, não só o escolhido na
+ * geração) combinam com a foto (OpenAI, visão) → conta combinações no
+ * catálogo atual (`contarCombinacoes`, regra pura, sem IA) → só o que
+ * passa dos 3 filtros entra `pendente` na fila de revisão; o resto vira
+ * `rejeitado` com o motivo automático. Cada peça é tratada isoladamente
+ * (try/catch) — 1 falhar não derruba as outras.
+ *
+ * Multi-perfil (2026-07-28): uma peça pode combinar com mais de 1
+ * perfil de estilo — o perfil originalmente escolhido pra gerar sempre
+ * entra (`perfilEstiloId` continua sendo a FK singular em
+ * `peca_candidato_ia`, "gerada pra qual perfil"), mais o que
+ * `avaliarImagemBateComPeca` julgar olhando a foto de verdade
+ * (`perfisEstiloIdsFinal`, gravado na tabela de junção
+ * `peca_candidato_ia_estilo` — mesmo padrão de `peca_estilo`, que já
+ * suporta múltiplos perfis por peça real). `contarCombinacoes` usa o
+ * conjunto final (não só o original), já que a peça também combina com
+ * looks dos perfis extras julgados.
  *
  * Meta, não tentativa única: continua gerando lotes novos (chamando
  * `gerarListaDePecas` de novo, passando os nomes já tentados pra
@@ -158,7 +173,7 @@ export async function gerarCandidatosIaAction(
   });
   if (!perfil) throw new Error("Perfil de estilo não encontrado.");
 
-  const [observacoesRecentes, capsulasRecentes, todasPecas] = await Promise.all([
+  const [observacoesRecentes, capsulasRecentes, todasPecas, todosPerfis] = await Promise.all([
     db
       .select({ texto: buscaIaObservacoes.texto })
       .from(buscaIaObservacoes)
@@ -166,6 +181,9 @@ export async function gerarCandidatosIaAction(
       .limit(OBSERVACOES_RECENTES_LIMITE),
     db.select({ id: capsulas.id }).from(capsulas).orderBy(desc(capsulas.dataLancamento)).limit(1),
     db.query.pecas.findMany({ with: { pesosClima: true, ocasioesBase: true, estilos: true } }),
+    db
+      .select({ id: perfisEstilo.id, nome: perfisEstilo.nome, descricao: perfisEstilo.descricao })
+      .from(perfisEstilo),
   ]);
 
   const capsulaIdPadrao = capsulasRecentes[0]?.id;
@@ -215,7 +233,7 @@ export async function gerarCandidatosIaAction(
       try {
         const encontrada = await buscarImagemDaPeca(`${item.nome}, cor ${item.corValor}`);
         if (!encontrada) {
-          await inserirCandidato(candidatoId, perfilEstiloId, item, "rejeitado", {
+          await inserirCandidato(candidatoId, perfilEstiloId, [perfilEstiloId], item, "rejeitado", {
             capsulaId: capsulaIdPadrao,
             motivo: "Nenhuma imagem encontrada na busca.",
           });
@@ -228,7 +246,7 @@ export async function gerarCandidatosIaAction(
           `pecas-ia/${candidatoId}`,
         );
         if (!imagemUrl) {
-          await inserirCandidato(candidatoId, perfilEstiloId, item, "rejeitado", {
+          await inserirCandidato(candidatoId, perfilEstiloId, [perfilEstiloId], item, "rejeitado", {
             capsulaId: capsulaIdPadrao,
             motivo: "Falha ao baixar/hospedar a imagem encontrada.",
             linkOrigemImagem: encontrada.sourceUri,
@@ -237,9 +255,9 @@ export async function gerarCandidatosIaAction(
           continue;
         }
 
-        const avaliacao = await avaliarImagemBateComPeca(imagemUrl, item.nome);
+        const avaliacao = await avaliarImagemBateComPeca(imagemUrl, item.nome, todosPerfis);
         if (!avaliacao.bate) {
-          await inserirCandidato(candidatoId, perfilEstiloId, item, "rejeitado", {
+          await inserirCandidato(candidatoId, perfilEstiloId, [perfilEstiloId], item, "rejeitado", {
             capsulaId: capsulaIdPadrao,
             motivo: "Avaliação de imagem: não corresponde à peça pedida.",
             imagemUrl,
@@ -249,7 +267,7 @@ export async function gerarCandidatosIaAction(
           continue;
         }
         if (!avaliacao.fundoNeutro) {
-          await inserirCandidato(candidatoId, perfilEstiloId, item, "rejeitado", {
+          await inserirCandidato(candidatoId, perfilEstiloId, [perfilEstiloId], item, "rejeitado", {
             capsulaId: capsulaIdPadrao,
             motivo: "Avaliação de imagem: fundo não é neutro (não é padrão de loja).",
             imagemUrl,
@@ -267,36 +285,57 @@ export async function gerarCandidatosIaAction(
           corTipo: avaliacao.corTipo ?? item.corTipo,
         };
 
+        // Perfil originalmente pedido sempre entra, mais o que a visão
+        // julgou que também combina (uma peça pode caber em mais de 1
+        // perfil — ver CLAUDE.md).
+        const perfisEstiloIdsFinal = Array.from(
+          new Set([perfilEstiloId, ...avaliacao.perfisEstiloIds]),
+        );
+
         const numeroCombinacoes = contarCombinacoes(
           {
             slot: itemComCorReal.slot,
             climas: itemComCorReal.pesoClima,
             ocasioes: itemComCorReal.ocasiaoBase,
-            perfis: [perfilEstiloId],
+            perfis: perfisEstiloIdsFinal,
           },
           pecasParaGeracao,
         );
         if (numeroCombinacoes < NUMERO_MINIMO_COMBINACOES) {
-          await inserirCandidato(candidatoId, perfilEstiloId, itemComCorReal, "rejeitado", {
-            capsulaId: capsulaIdPadrao,
-            motivo: `Poucas combinações no catálogo atual (${numeroCombinacoes}).`,
-            imagemUrl,
-            linkOrigemImagem: encontrada.sourceUri,
-            numeroCombinacoes,
-          });
+          await inserirCandidato(
+            candidatoId,
+            perfilEstiloId,
+            perfisEstiloIdsFinal,
+            itemComCorReal,
+            "rejeitado",
+            {
+              capsulaId: capsulaIdPadrao,
+              motivo: `Poucas combinações no catálogo atual (${numeroCombinacoes}).`,
+              imagemUrl,
+              linkOrigemImagem: encontrada.sourceUri,
+              numeroCombinacoes,
+            },
+          );
           rejeitadasAuto++;
           continue;
         }
 
-        await inserirCandidato(candidatoId, perfilEstiloId, itemComCorReal, "pendente", {
-          capsulaId: capsulaIdPadrao,
-          imagemUrl,
-          linkOrigemImagem: encontrada.sourceUri,
-          numeroCombinacoes,
-        });
+        await inserirCandidato(
+          candidatoId,
+          perfilEstiloId,
+          perfisEstiloIdsFinal,
+          itemComCorReal,
+          "pendente",
+          {
+            capsulaId: capsulaIdPadrao,
+            imagemUrl,
+            linkOrigemImagem: encontrada.sourceUri,
+            numeroCombinacoes,
+          },
+        );
         pendentesNaFila++;
       } catch (erro) {
-        await inserirCandidato(candidatoId, perfilEstiloId, item, "rejeitado", {
+        await inserirCandidato(candidatoId, perfilEstiloId, [perfilEstiloId], item, "rejeitado", {
           capsulaId: capsulaIdPadrao,
           motivo: erro instanceof Error ? `Erro: ${erro.message}` : "Erro desconhecido ao processar.",
         });

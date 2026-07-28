@@ -115,14 +115,24 @@ não são óbvios a partir da spec original:
   slots mudaram — ele recebe o novo conjunto completo de peças e calcula
   a diferença contra o look-base (`_lib/calcular-slots-trocados.ts`,
   testado). Precisa mudar ao menos 1 slot ou a action rejeita.
-- **Clima só existe em 4 slots** (`parte_de_cima`, `parte_de_baixo`,
-  `peca_unica`, `calcado` — constante `SLOTS_COM_CLIMA`, duplicada em
-  `pecas/_lib/schema.ts`, `looks/_lib/derivar-clima.ts` e
+- **Clima só existe em 5 slots** (`parte_de_cima`, `parte_de_baixo`,
+  `peca_unica`, `calcado`, `sobreposicao` — constante `SLOTS_COM_CLIMA`,
+  duplicada em `pecas/_lib/schema.ts`, `looks/_lib/derivar-clima.ts` e
   `sugestoes-de-look/_lib/gerar-candidatos.ts`). Cinto/bolsa/acessório-
   outro não têm — `pecaSchema` rejeita clima nesses slots via
   `superRefine`, e o form esconde o fieldset (ver "eco de valores" nos
   gotchas abaixo, o mesmo mecanismo é usado pra saber o slot atual antes
-  de submeter).
+  de submeter). `sobreposicao` entrou em 2026-07-28 — não tinha clima
+  desde a implementação original (só 4 slots), o que não fazia sentido
+  de domínio (peça de sobreposição pesada, tipo casaco, não serve pro
+  calor); usuário notou isso revisando candidato gerado pela IA
+  (`sobreposicao` já era tratado como "com clima" só do lado da geração
+  da IA, `pecas-ia/_lib/gerar-lista.ts#SLOTS_SEM_CLIMA` nunca incluiu
+  esse slot — o problema era só nos 3 lugares centrais, que ficavam
+  inconsistentes com a própria IA). Peça de sobreposição já cadastrada
+  sem clima continua como está até ser editada — sem backfill
+  automático, só passa a exigir clima em cadastro/edição novos daqui
+  pra frente.
 - **`look.clima_misto` + tabela `look_clima`**: clima do look é derivado
   (igual cápsula) — interseção dos climas das peças que têm clima
   definido (`looks/_lib/derivar-clima.ts`, testado). Interseção vazia com
@@ -479,6 +489,23 @@ novo se voltar a acontecer.
    `rejeitado` por combinação insuficiente), não pelo que o passo 1
    imaginou. Combinação (passo 4) não usa cor, então a ordem não
    importa pra esse cálculo.
+
+   **Também julga multi-perfil (2026-07-28)**: uma peça pode combinar
+   com mais de 1 perfil de estilo ao mesmo tempo (ex.: romântico **e**
+   dramático urbano) — igual `peca_estilo` já suporta múltiplos perfis
+   por peça real (`pecaSchema.perfilEstiloIds`, array). Antes, o
+   candidato da IA só ia pro perfil escolhido na tela de geração,
+   nunca mais que 1. Corrigido passando a lista de **todos** os
+   perfis cadastrados (nome + descrição) pra mesma chamada de visão —
+   o modelo devolve quais combinam olhando a foto de verdade
+   (`AvaliacaoImagem.perfisEstiloIds`, resolvido de nome→id contra a
+   lista recebida, nome que não bate com nenhum perfil real é
+   ignorado). O perfil originalmente escolhido sempre entra também
+   (`perfilEstiloId` continua sendo a FK singular em
+   `peca_candidato_ia`, "gerada pra qual perfil"); os extras julgados
+   viram linhas a mais em `peca_candidato_ia_estilo` (tabela de junção,
+   já existia, só nunca recebia mais de 1 linha). `contarCombinacoes`
+   (passo 4) usa o conjunto final, não só o perfil original.
 4. **Checagem de combinação (regra, sem IA)**:
    `contarCombinacoes` — monta o catálogo real + a peça hipotética
    (id temporário), chama `gerarCandidatos` com **assinaturas vazias
