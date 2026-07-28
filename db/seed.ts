@@ -16,10 +16,13 @@ async function seed() {
   await db
     .insert(perfisEstilo)
     .values([
-      { nome: "Clássica" },
-      { nome: "Descontraída/casual-chic" },
-      { nome: "Moderna/minimalista" },
-      { nome: "Romântica" },
+      { nome: "Esportivo" },
+      { nome: "Tradicional" },
+      { nome: "Elegante" },
+      { nome: "Romântico" },
+      { nome: "Criativo" },
+      { nome: "Sexy" },
+      { nome: "Dramático urbano" },
     ])
     .onConflictDoNothing({ target: perfisEstilo.nome });
 

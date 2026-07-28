@@ -36,7 +36,7 @@ segue normal, sem essa etapa.
 docker compose up -d       # sobe o Postgres local
 npm run db:generate        # gera migration a partir do schema em db/schema
 npm run db:migrate         # aplica migrations
-npm run db:seed            # cria 1 usuário + 4 perfis de estilo + 2 cápsulas
+npm run db:seed            # cria 1 usuário + 7 perfis de estilo + 2 cápsulas
 npm run dev                # http://localhost:3000
 npm run lint
 npm test                   # vitest run
@@ -67,8 +67,9 @@ app/(dashboard)/<tela>/
   _lib/                # zod schema, labels, funções puras só desta tela
 ```
 
-Telas: `pecas`, `looks`, `sugestoes-de-look`, `perfis-de-estilo`, `capsulas`,
-`(auth)/login`.
+Telas: `pecas`, `looks`, `sugestoes-de-look`, `capsulas`, `(auth)/login`.
+`perfil_estilo` **não** é mais uma tela — ver seção "Schema do banco"
+abaixo (os 7 perfis são fixos, sem tela de administrar).
 
 **Regra ao adicionar/alterar algo**: se é lógica de uma tela específica,
 mora na pasta dela. Só entram em `db/`, `lib/` ou `components/ui|shell`
@@ -89,6 +90,14 @@ não são óbvios a partir da spec original:
 - **Slots**: o "acessório" da spec virou 3 slots (`cinto`, `bolsa`,
   `acessorio_outro`) pra permitir combinar vários acessórios num look —
   decisão validada com o usuário.
+- **`perfil_estilo`**: a spec original previa entidade editável pela
+  equipe; decisão de produto (2026-07-25) fixou em 7 perfis (Esportivo,
+  Tradicional, Elegante, Romântico, Criativo, Sexy, Dramático urbano) —
+  continua sendo tabela (peça/look referenciam por id, `npm run
+  db:seed` semeia os 7), mas **não tem mais tela de administrar**
+  (criar/editar/apagar). Trocar a lista de perfis hoje é só editar
+  `db/seed.ts` e rodar uma migração de dado (não existe mais UI pra
+  isso).
 - **`look_slot_trocado`** é uma tabela (lista), não um campo único — uma
   variante pode trocar mais de um slot de uma vez (ex.: cinto + sapato).
 - **`capsula`** é entidade própria (`nome` + `data_lancamento`), não texto

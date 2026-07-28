@@ -6,7 +6,6 @@ const links = [
   { href: "/pecas", label: "Peças" },
   { href: "/looks", label: "Looks" },
   { href: "/sugestoes-de-look", label: "Sugestões" },
-  { href: "/perfis-de-estilo", label: "Perfis de estilo" },
   { href: "/capsulas", label: "Cápsulas" },
 ];
 

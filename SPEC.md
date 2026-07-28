@@ -77,11 +77,13 @@ gerada automaticamente pelo sistema.
   preenchido): qual slot foi trocado em relação ao look-base.
 
 ### Perfil de estilo
-Entidade própria e editável (não uma lista fixa no código) — os perfis que
-a usuária final vai escolher se identificar no onboarding do futuro app.
-Pontos de partida sugeridos, ainda não validados com pesquisa real:
-Clássica, Descontraída/casual-chic, Moderna/minimalista, Romântica. Toda
-peça e todo look referenciam um ou mais desses perfis.
+Fixos (decisão de produto, 2026-07-25, validada — não é mais editável
+pela equipe): Esportivo, Tradicional, Elegante, Romântico, Criativo,
+Sexy, Dramático urbano. Continuam sendo uma entidade própria no banco
+(peça e look referenciam por id) — só não há mais tela de
+criar/editar/apagar perfil. São os perfis que a usuária final vai
+escolher se identificar no onboarding do futuro app. Toda peça e todo
+look referenciam um ou mais desses perfis.
 
 ## Sobre o motor de decisão (contexto, não construir agora)
 

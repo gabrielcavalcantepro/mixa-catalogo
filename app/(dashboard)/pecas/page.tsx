@@ -45,7 +45,14 @@ export default async function PecasPage({
           <h1 className="text-3xl">Catálogo de peças</h1>
           <p className="text-muted-foreground">{pecas.length} peça(s)</p>
         </div>
-        <Button nativeButton={false} render={<Link href="/pecas/novo">Nova peça</Link>} />
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href="/pecas/em-massa">Cadastrar em massa</Link>}
+          />
+          <Button nativeButton={false} render={<Link href="/pecas/novo">Nova peça</Link>} />
+        </div>
       </div>
 
       <PecaFiltros capsulas={opcoes.capsulas} perfis={opcoes.perfis} valoresAtuais={filtros} />

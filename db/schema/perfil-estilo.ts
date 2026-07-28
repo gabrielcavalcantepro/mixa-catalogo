@@ -1,9 +1,11 @@
 import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 /**
- * Entidade própria e editável (spec exige: não é lista fixa em código).
- * Seed inicial cobre as 4 sugestões da spec, mas a equipe pode
- * criar/editar/remover perfis pela tela própria.
+ * Continua sendo tabela (peça e look referenciam por id), mas os 7
+ * perfis são fixos (decisão de produto, 2026-07-25) — sem tela de
+ * administrar (criar/editar/apagar). Únicos valores válidos: Esportivo,
+ * Tradicional, Elegante, Romântico, Criativo, Sexy, Dramático urbano
+ * (ver `db/seed.ts`).
  */
 export const perfisEstilo = pgTable("perfil_estilo", {
   id: uuid("id").primaryKey().defaultRandom(),
