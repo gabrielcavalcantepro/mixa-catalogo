@@ -23,6 +23,12 @@ import {
   lookCandidatoPerfisSugeridos,
   lookCandidatos,
 } from "./look-candidato";
+import {
+  pecaCandidatoIaEstilo,
+  pecaCandidatoIaOcasiaoBase,
+  pecaCandidatoIaPesoClima,
+  pecaCandidatosIa,
+} from "./peca-candidato-ia";
 
 export const capsulasRelations = relations(capsulas, ({ many }) => ({
   pecas: many(pecas),
@@ -32,6 +38,7 @@ export const capsulasRelations = relations(capsulas, ({ many }) => ({
 export const perfisEstiloRelations = relations(perfisEstilo, ({ many }) => ({
   pecaEstilo: many(pecaEstilo),
   lookPerfisEstilo: many(lookPerfisEstilo),
+  pecaCandidatoIaEstilo: many(pecaCandidatoIaEstilo),
 }));
 
 export const pecasRelations = relations(pecas, ({ one, many }) => ({
@@ -160,3 +167,49 @@ export const lookCandidatoPerfisSugeridosRelations = relations(
     }),
   }),
 );
+
+export const pecaCandidatosIaRelations = relations(pecaCandidatosIa, ({ one, many }) => ({
+  perfilEstilo: one(perfisEstilo, {
+    fields: [pecaCandidatosIa.perfilEstiloId],
+    references: [perfisEstilo.id],
+  }),
+  capsula: one(capsulas, {
+    fields: [pecaCandidatosIa.capsulaId],
+    references: [capsulas.id],
+  }),
+  pecaResultante: one(pecas, {
+    fields: [pecaCandidatosIa.pecaIdResultante],
+    references: [pecas.id],
+  }),
+  pesosClima: many(pecaCandidatoIaPesoClima),
+  ocasioesBase: many(pecaCandidatoIaOcasiaoBase),
+  estilos: many(pecaCandidatoIaEstilo),
+}));
+
+export const pecaCandidatoIaPesoClimaRelations = relations(pecaCandidatoIaPesoClima, ({ one }) => ({
+  candidato: one(pecaCandidatosIa, {
+    fields: [pecaCandidatoIaPesoClima.candidatoId],
+    references: [pecaCandidatosIa.id],
+  }),
+}));
+
+export const pecaCandidatoIaOcasiaoBaseRelations = relations(
+  pecaCandidatoIaOcasiaoBase,
+  ({ one }) => ({
+    candidato: one(pecaCandidatosIa, {
+      fields: [pecaCandidatoIaOcasiaoBase.candidatoId],
+      references: [pecaCandidatosIa.id],
+    }),
+  }),
+);
+
+export const pecaCandidatoIaEstiloRelations = relations(pecaCandidatoIaEstilo, ({ one }) => ({
+  candidato: one(pecaCandidatosIa, {
+    fields: [pecaCandidatoIaEstilo.candidatoId],
+    references: [pecaCandidatosIa.id],
+  }),
+  perfilEstilo: one(perfisEstilo, {
+    fields: [pecaCandidatoIaEstilo.perfilEstiloId],
+    references: [perfisEstilo.id],
+  }),
+}));

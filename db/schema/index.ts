@@ -5,4 +5,6 @@ export * from "./capsula";
 export * from "./peca";
 export * from "./look";
 export * from "./look-candidato";
+export * from "./peca-candidato-ia";
+export * from "./busca-ia-observacao";
 export * from "./relations";

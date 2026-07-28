@@ -49,7 +49,9 @@ Variáveis de ambiente em `.env` (copiar de `.env.example`):
 pelo `db:seed`), `API_TOKEN` (token de serviço da API de leitura pro
 app Mixa — ver `CLAUDE.md`/`SPEC.md` do `mixa-app`), `SUPABASE_URL` /
 `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_STORAGE_BUCKET` (armazenamento
-de imagem — ver seção própria abaixo).
+de imagem — ver seção própria abaixo), `OPENAI_API_KEY` (busca de peça
+assistida por IA — ver seção própria "Busca de peça assistida por IA"
+abaixo).
 
 ## Arquitetura: fatia vertical por tela (não-negociável)
 
@@ -67,7 +69,8 @@ app/(dashboard)/<tela>/
   _lib/                # zod schema, labels, funções puras só desta tela
 ```
 
-Telas: `pecas`, `looks`, `sugestoes-de-look`, `capsulas`, `(auth)/login`.
+Telas: `pecas`, `pecas-ia`, `looks`, `sugestoes-de-look`, `capsulas`,
+`(auth)/login`.
 `perfil_estilo` **não** é mais uma tela — ver seção "Schema do banco"
 abaixo (os 7 perfis são fixos, sem tela de administrar).
 
@@ -309,6 +312,146 @@ isso via código/migration.
 Sem fallback pra disco se as env vars faltarem — lança erro claro
 (`exigirEnv`) em vez de voltar silenciosamente pro bug que motivou a
 troca (imagem sumindo depois de todo deploy serverless).
+
+## Busca de peça assistida por IA (`app/(dashboard)/pecas-ia/`)
+
+3º caminho de cadastro de peça (além do form único e do cadastro em
+massa via planilha, `pecas/em-massa/`) — a IA gera e pré-avalia
+candidatos, e só o que sobra da triagem automática chega no admin, que
+aprova/edita/rejeita **na mesma tela de revisão do cadastro em massa**
+(`pecas/em-massa/_components/cadastro-em-massa.tsx` +
+`linha-revisao.tsx`) — sem UI de revisão nova, sem regra de validação
+nova (`pecaSchema` de sempre). Nunca há aprovação automática.
+
+**Variável nova**: `OPENAI_API_KEY`, usada nos 3 passos do pipeline —
+geração da lista (com busca web), busca de imagem por peça (busca web)
+e avaliação de visão. Não depende mais de `GEMINI_API_KEY` (ver nota
+histórica abaixo, no passo 1).
+
+**Exceções deliberadas à regra de fatia autocontida** (duplicar aqui
+seria arriscar 2 cópias de lógica não-trivial divergirem com o tempo —
+decisão do plano aprovado desta funcionalidade, não descuido):
+`pecas-ia/_lib/contar-combinacoes.ts` importa
+`sugestoes-de-look/_lib/gerar-candidatos.ts#gerarCandidatos` direto (a
+mesma função pura de combinação, testada, do motor de sugestão de
+look); `pecas-ia/_actions/desfazer-aprovacao.ts` importa
+`pecas/_actions/excluir-peca.ts#excluirPeca` direto (mesma
+peça-apagar-com-limpeza-de-storage-e-guarda-de-FK de sempre);
+`pecas-ia/_lib/mapear-candidato-para-linha.ts` importa
+`pecas/em-massa/_components/linha-revisao.tsx#LinhaEstado` e
+`pecas/_lib/schema.ts#pecaSchema` (mesmo tipo de linha, mesma
+validação, é o ponto central de "reaproveita a tela existente").
+
+**`pecas/_actions/_inserir-peca.ts#inserirPeca` mudou de assinatura**
+por causa disso: recebia `arquivos: File[]` e subia pro Supabase
+internamente; agora recebe `urls: string[]` já prontas (e um `id`
+opcional, pra quem precisa saber o id da peça antes de existir, pra
+montar a pasta de upload `pecas/<id>/...`) — candidato aprovado da
+busca por IA já tem imagem hospedada desde o momento da busca (upload
+de novo seria duplicado), então quem chama decide se sobe arquivo novo
+antes (form único, planilha) ou só repassa a URL que já existe (IA).
+`criar-peca.ts` e `confirmar-cadastro-em-massa.ts` (esse último
+reaproveitado pelos 2 fluxos, planilha e IA) fazem o upload quando
+precisam, antes de chamar `inserirPeca`.
+
+**Pipeline** (`_actions/gerar-candidatos-ia.ts`, 1 Server Action
+síncrona pra até 10 peças, por perfil de estilo escolhido pelo admin —
+nunca assume que são 7 fixos no código, usa o que
+`perfisEstilo` devolver):
+
+1. **Geração (OpenAI, 1 chamada)**: pede 7 peças "de conhecimento"
+   (sem pesquisar) + 3 "de tendência atual" (baseadas numa busca por
+   "tendências moda feminina [estilo] 2026") — a separação 7/3 é
+   instrução de prompt, não 2 chamadas ("1 busca só" foi o pedido).
+   Observações recentes (`busca_ia_observacao`, últimas 10) entram
+   como contexto. Modelo `gpt-4o-mini-search-preview` +
+   `web_search_options: {}` (busca web nativa do Chat Completions).
+   `response_format` estruturado não combina com busca web nesses
+   modelos — por isso o JSON é pedido por instrução no prompt e
+   validado com Zod na volta (mesma lógica de antes, só trocou o
+   fornecedor).
+2. **Por peça, busca de imagem (OpenAI, 2 passos)**: a OpenAI não tem
+   busca de imagem dedicada (só devolve citação de página em
+   `annotations[].url_citation`, não URI de imagem) — e pedir pro
+   próprio modelo apontar, em JSON, a URL direta do arquivo de imagem
+   foi tentado primeiro e **descartado**: forçar JSON estrito quebra o
+   mecanismo de citação (annotations vêm vazias) e o modelo passa a
+   inventar uma URL plausível em vez de citar uma de verdade
+   (confirmado ao vivo: pediu foto de um blazer preto e devolveu uma
+   URL no formato exato de CDN da Zara que na verdade dá 404). Solução
+   (`buscar-imagem.ts`): (a) busca web em prompt de texto livre — sem
+   forçar formato — e lê a citação real que a própria API anexa em
+   `annotations[].url_citation.url` (até 5 citações, na ordem
+   devolvida); (b) pra cada citação, busca (`fetch`) a página de
+   verdade e extrai a imagem principal lendo o HTML — meta `og:image`
+   primeiro, com fallback pra 1ª `<img>` que não pareça logo/ícone
+   (filtro simples por nome de arquivo) — sem perguntar nada pra IA
+   nessa parte, só lendo o que já está marcado na página. Tenta a
+   próxima citação se uma não render imagem extraível. Continua
+   heurística (nem toda página marca `og:image`, e a 1ª `<img>` de
+   fallback pode ser algo errado como o logo da loja) — por isso o
+   check de `content-type` em `baixarEHospedarImagem` (rejeita URL que
+   não seja imagem de verdade) e a avaliação de visão do passo 3
+   (rejeita imagem que não bate com a peça, ex.: pegou o logo da loja
+   por engano) continuam sendo os filtros de verdade — esta função só
+   decide de onde vem a URL candidata. Sem imagem encontrada/baixável
+   em nenhuma citação → `rejeitado` com motivo, não segue pra essa
+   peça.
+
+   **Nota histórica (2026-07-28) — por que não é mais Gemini**: os
+   passos 1 e 2 usavam Gemini (grounding com Google Search,
+   `tools: [{googleSearch: {...}}]`, incluindo `searchTypes.imageSearch`
+   dedicado no passo 2 — mecanismo melhor que o da OpenAI pra esse
+   caso, já que devolvia URI de imagem direto sem precisar visitar
+   página nenhuma). No teste real, a ferramenta de busca devolveu 429
+   `RESOURCE_EXHAUSTED` já na 1ª chamada de grounding. Investigação
+   pedida explicitamente antes de qualquer correção (contagem exata de
+   chamadas, corpo completo do erro, checagem de painel) confirmou: não
+   é bug de código nem de lógica de retry — a ferramenta de busca do
+   Gemini exige carregar saldo de faturamento na conta Google antes de
+   ser liberada, mesmo dentro do nível gratuito de uso. Decisão:
+   consolidar em só OpenAI por enquanto pra não travar o teste; Gemini
+   fica **documentado aqui como opção pra revisitar depois** (o
+   mecanismo de busca de imagem dele é estritamente melhor pro passo 2),
+   não removido do histórico de decisão — só tirado do caminho ativo
+   (`gemini-client.ts` foi deletado, `@google/genai` removido de
+   `package.json`, `GEMINI_API_KEY` não é mais lida em lugar nenhum).
+3. **Avaliação de imagem (OpenAI, visão)**: a foto bate com a peça
+   pedida? Não bate → `rejeitado`, não chega no admin. Não muda nessa
+   troca — já era OpenAI.
+4. **Checagem de combinação (regra, sem IA)**:
+   `contarCombinacoes` — monta o catálogo real + a peça hipotética
+   (id temporário), chama `gerarCandidatos` com **assinaturas vazias
+   de propósito** (conta toda combinação válida possível, não só as
+   inéditas) e conta em quantos candidatos resultantes o id
+   hipotético aparece. `< 5` → `rejeitado` com o número no motivo.
+5. **O que sobra** vira `pendente` na fila de revisão, com
+   `numeroCombinacoes` guardado (mostrado como badge na revisão).
+
+Cada peça é isolada (try/catch) — 1 falhar vira `rejeitado`/motivo de
+erro, não derruba as outras 9. **Risco assumido**: é 1 Server Action
+síncrona com várias chamadas de API externa em sequência — pode
+demorar; sem infra de fila neste projeto ainda, próxima melhoria se
+esbarrar em timeout de plataforma.
+
+**Schema** (`db/schema/peca-candidato-ia.ts`,
+`db/schema/busca-ia-observacao.ts`): `peca_candidato_ia` espelha
+`peca` (mesmos campos + tabelas de junção pra clima/ocasião/estilo),
+com `status` (`pendente`/`aprovado`/`rejeitado`/`desfeito`),
+`motivoRejeicaoAutomatica`, `imagemUrl`/`linkOrigemImagem`,
+`numeroCombinacoes`, `pecaIdResultante` (preenchido ao aprovar,
+permite "desfazer" depois — reaproveita `excluirPeca`, marca
+`desfeito`, nunca volta a `pendente`). `capsulaId` começa com a
+cápsula de lançamento mais recente do catálogo como default (IA não
+tem como saber cápsula; admin troca na revisão como qualquer campo).
+`busca_ia_observacao`: anotação livre do admin, sem vínculo com
+estilo específico.
+
+**Aba Histórico** (dentro da própria tela `/pecas-ia`, não é item novo
+da nav): candidatos `aprovado`/`rejeitado`/`desfeito`, mais recentes
+primeiro, com botão "Desfazer" só nos `aprovado`, e o form de
+observação (mostra as últimas salvas, insere linha nova em
+`busca_ia_observacao`).
 
 ## Convenções de formulário
 

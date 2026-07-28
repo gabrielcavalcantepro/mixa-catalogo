@@ -1,7 +1,9 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { storage } from "@/lib/storage";
 import { extrairValoresPeca, formDataParaPeca, type PecaActionState } from "../_lib/schema";
 import { inserirPeca } from "./_inserir-peca";
 
@@ -24,7 +26,9 @@ export async function criarPeca(
     };
   }
 
-  await inserirPeca(parsed.data, arquivos);
+  const id = randomUUID();
+  const urls = await Promise.all(arquivos.map((arquivo) => storage.salvar(arquivo, `pecas/${id}`)));
+  await inserirPeca(parsed.data, urls, id);
 
   revalidatePath("/pecas");
   redirect("/pecas");

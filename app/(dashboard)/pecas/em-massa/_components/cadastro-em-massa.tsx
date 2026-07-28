@@ -9,23 +9,38 @@ import { confirmarCadastroEmMassa } from "../_actions/confirmar-cadastro-em-mass
 import { LinhaRevisao, type LinhaEstado } from "./linha-revisao";
 import { Button } from "@/components/ui/button";
 
+function temImagem(linha: LinhaEstado): boolean {
+  return linha.imagens.length > 0 || Boolean(linha.imagemExistente);
+}
+
 /**
- * Orquestra os 2 passos client-side (upload -> revisão/confirmar).
- * "Confirmar cadastro" não usa `<form action>` — são N peças com N
- * conjuntos de arquivo, não cabe num único form; a Server Action é
+ * Orquestra os passos client-side (upload -> revisão/confirmar).
+ * Reaproveitada por 2 fluxos: cadastro em massa via planilha (passa
+ * por "upload") e busca por peça assistida por IA
+ * (`app/(dashboard)/pecas-ia/`, passa `linhasIniciais` já prontas,
+ * pulando o passo de upload direto pra revisão) — mesma tela de
+ * revisão e mesma ação de confirmar pros 2, só a origem das linhas
+ * muda. "Confirmar cadastro" não usa `<form action>` — são N peças com
+ * N conjuntos de arquivo, não cabe num único form; a Server Action é
  * chamada direto com um FormData montado na mão (ver `confirmar`
  * abaixo), com `pending` via `useTransition`.
  */
 export function CadastroEmMassa({
   opcoes,
+  linhasIniciais,
+  aoRemoverExtra,
 }: {
   opcoes: { capsulas: Capsula[]; perfis: PerfilEstilo[] };
+  /** Se vier definido (mesmo `[]`), pula o passo de upload — usado pela busca por IA. */
+  linhasIniciais?: LinhaEstado[];
+  /** Chamado (fire-and-forget) quando uma linha é removida da lista — busca por IA usa isso pra marcar o candidato como rejeitado. */
+  aoRemoverExtra?: (linha: LinhaEstado) => void;
 }) {
   const [estadoUpload, formActionUpload, pendingUpload] = useActionState(
     processarPlanilha,
     undefined as ProcessarPlanilhaState,
   );
-  const [linhas, setLinhas] = useState<LinhaEstado[] | null>(null);
+  const [linhas, setLinhas] = useState<LinhaEstado[] | null>(linhasIniciais ?? null);
   const [pendingConfirmar, startTransition] = useTransition();
 
   // Ajusta o estado durante a renderização (mesmo padrão do resto do
@@ -44,6 +59,16 @@ export function CadastroEmMassa({
         })),
       );
     }
+  }
+
+  // Mesmo padrão pra `linhasIniciais`: sincroniza sempre que o pai (a
+  // tela de busca por IA) manda uma lista nova (nova geração, ou
+  // depois de aprovar/rejeitar algo e o servidor revalidar).
+  const [ultimasLinhasIniciaisSincronizadas, setUltimasLinhasIniciaisSincronizadas] =
+    useState(linhasIniciais);
+  if (linhasIniciais !== ultimasLinhasIniciaisSincronizadas) {
+    setUltimasLinhasIniciaisSincronizadas(linhasIniciais);
+    setLinhas(linhasIniciais ?? null);
   }
 
   function atualizarLinha(id: string, parcial: Partial<LinhaEstado["valores"]>) {
@@ -68,16 +93,30 @@ export function CadastroEmMassa({
   }
 
   function removerLinha(id: string) {
-    setLinhas((atual) => (atual ?? []).filter((linha) => linha.id !== id));
+    setLinhas((atual) => {
+      const linha = (atual ?? []).find((l) => l.id === id);
+      if (linha) aoRemoverExtra?.(linha);
+      return (atual ?? []).filter((l) => l.id !== id);
+    });
   }
 
   function confirmar() {
     if (!linhas) return;
-    const prontas = linhas.filter((l) => !l.erro && l.imagens.length > 0);
+    const prontas = linhas.filter((l) => !l.erro && temImagem(l));
     if (prontas.length === 0) return;
 
     const formData = new FormData();
-    formData.set("dados", JSON.stringify(prontas.map((l) => ({ id: l.id, valores: l.valores }))));
+    formData.set(
+      "dados",
+      JSON.stringify(
+        prontas.map((l) => ({
+          id: l.id,
+          valores: l.valores,
+          origemCandidatoId: l.origemCandidatoId,
+          imagemExistenteUrl: l.imagemExistente?.url ?? null,
+        })),
+      ),
+    );
     for (const linha of prontas) {
       for (const arquivo of linha.imagens) {
         formData.append(`imagens-${linha.id}`, arquivo);
@@ -122,7 +161,7 @@ export function CadastroEmMassa({
     );
   }
 
-  const prontasParaConfirmar = linhas.filter((l) => !l.erro && l.imagens.length > 0).length;
+  const prontasParaConfirmar = linhas.filter((l) => !l.erro && temImagem(l)).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -144,7 +183,7 @@ export function CadastroEmMassa({
       <div className="flex flex-col gap-4">
         {linhas.map((linha) => {
           const erroExibido =
-            linha.erro ?? (linha.imagens.length === 0 ? "Adicione ao menos uma imagem." : undefined);
+            linha.erro ?? (!temImagem(linha) ? "Adicione ao menos uma imagem." : undefined);
           return (
             <LinhaRevisao
               key={linha.id}

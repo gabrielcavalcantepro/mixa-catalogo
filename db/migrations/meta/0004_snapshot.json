@@ -1,0 +1,1524 @@
+{
+  "id": "5e72e52f-6406-4827-84ac-c040d6d07f4b",
+  "prevId": "814ca7e2-212e-42b3-a57e-725acdcc58ac",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.usuario": {
+      "name": "usuario",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "senha_hash": {
+          "name": "senha_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'gestor'"
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "usuario_email_unique": {
+          "name": "usuario_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.perfil_estilo": {
+      "name": "perfil_estilo",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descricao": {
+          "name": "descricao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "perfil_estilo_nome_unique": {
+          "name": "perfil_estilo_nome_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "nome"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.capsula": {
+      "name": "capsula",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "data_lancamento": {
+          "name": "data_lancamento",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "capsula_nome_unique": {
+          "name": "capsula_nome_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "nome"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.peca_estilo": {
+      "name": "peca_estilo",
+      "schema": "",
+      "columns": {
+        "peca_id": {
+          "name": "peca_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "perfil_estilo_id": {
+          "name": "perfil_estilo_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "peca_estilo_peca_id_peca_id_fk": {
+          "name": "peca_estilo_peca_id_peca_id_fk",
+          "tableFrom": "peca_estilo",
+          "tableTo": "peca",
+          "columnsFrom": [
+            "peca_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "peca_estilo_perfil_estilo_id_perfil_estilo_id_fk": {
+          "name": "peca_estilo_perfil_estilo_id_perfil_estilo_id_fk",
+          "tableFrom": "peca_estilo",
+          "tableTo": "perfil_estilo",
+          "columnsFrom": [
+            "perfil_estilo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "peca_estilo_peca_id_perfil_estilo_id_pk": {
+          "name": "peca_estilo_peca_id_perfil_estilo_id_pk",
+          "columns": [
+            "peca_id",
+            "perfil_estilo_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.peca_imagem": {
+      "name": "peca_imagem",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "peca_id": {
+          "name": "peca_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ordem": {
+          "name": "ordem",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "is_capa": {
+          "name": "is_capa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "peca_imagem_peca_id_peca_id_fk": {
+          "name": "peca_imagem_peca_id_peca_id_fk",
+          "tableFrom": "peca_imagem",
+          "tableTo": "peca",
+          "columnsFrom": [
+            "peca_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.peca_ocasiao_base": {
+      "name": "peca_ocasiao_base",
+      "schema": "",
+      "columns": {
+        "peca_id": {
+          "name": "peca_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ocasiao": {
+          "name": "ocasiao",
+          "type": "ocasiao",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "peca_ocasiao_base_peca_id_peca_id_fk": {
+          "name": "peca_ocasiao_base_peca_id_peca_id_fk",
+          "tableFrom": "peca_ocasiao_base",
+          "tableTo": "peca",
+          "columnsFrom": [
+            "peca_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "peca_ocasiao_base_peca_id_ocasiao_pk": {
+          "name": "peca_ocasiao_base_peca_id_ocasiao_pk",
+          "columns": [
+            "peca_id",
+            "ocasiao"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.peca_peso_clima": {
+      "name": "peca_peso_clima",
+      "schema": "",
+      "columns": {
+        "peca_id": {
+          "name": "peca_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "peso_clima": {
+          "name": "peso_clima",
+          "type": "peso_clima",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "peca_peso_clima_peca_id_peca_id_fk": {
+          "name": "peca_peso_clima_peca_id_peca_id_fk",
+          "tableFrom": "peca_peso_clima",
+          "tableTo": "peca",
+          "columnsFrom": [
+            "peca_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "peca_peso_clima_peca_id_peso_clima_pk": {
+          "name": "peca_peso_clima_peca_id_peso_clima_pk",
+          "columns": [
+            "peca_id",
+            "peso_clima"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.peca": {
+      "name": "peca",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slot": {
+          "name": "slot",
+          "type": "slot",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cor_tipo": {
+          "name": "cor_tipo",
+          "type": "cor_tipo",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cor_valor": {
+          "name": "cor_valor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "peca_chave": {
+          "name": "peca_chave",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "capsula_id": {
+          "name": "capsula_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "link_afiliado": {
+          "name": "link_afiliado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "peca_capsula_id_capsula_id_fk": {
+          "name": "peca_capsula_id_capsula_id_fk",
+          "tableFrom": "peca",
+          "tableTo": "capsula",
+          "columnsFrom": [
+            "capsula_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.look_clima": {
+      "name": "look_clima",
+      "schema": "",
+      "columns": {
+        "look_id": {
+          "name": "look_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "peso_clima": {
+          "name": "peso_clima",
+          "type": "peso_clima",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "look_clima_look_id_look_id_fk": {
+          "name": "look_clima_look_id_look_id_fk",
+          "tableFrom": "look_clima",
+          "tableTo": "look",
+          "columnsFrom": [
+            "look_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "look_clima_look_id_peso_clima_pk": {
+          "name": "look_clima_look_id_peso_clima_pk",
+          "columns": [
+            "look_id",
+            "peso_clima"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.look_ocasiao": {
+      "name": "look_ocasiao",
+      "schema": "",
+      "columns": {
+        "look_id": {
+          "name": "look_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ocasiao": {
+          "name": "ocasiao",
+          "type": "ocasiao",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "look_ocasiao_look_id_look_id_fk": {
+          "name": "look_ocasiao_look_id_look_id_fk",
+          "tableFrom": "look_ocasiao",
+          "tableTo": "look",
+          "columnsFrom": [
+            "look_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "look_ocasiao_look_id_ocasiao_pk": {
+          "name": "look_ocasiao_look_id_ocasiao_pk",
+          "columns": [
+            "look_id",
+            "ocasiao"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.look_peca": {
+      "name": "look_peca",
+      "schema": "",
+      "columns": {
+        "look_id": {
+          "name": "look_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slot": {
+          "name": "slot",
+          "type": "slot",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "peca_id": {
+          "name": "peca_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "look_peca_look_id_look_id_fk": {
+          "name": "look_peca_look_id_look_id_fk",
+          "tableFrom": "look_peca",
+          "tableTo": "look",
+          "columnsFrom": [
+            "look_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "look_peca_peca_id_peca_id_fk": {
+          "name": "look_peca_peca_id_peca_id_fk",
+          "tableFrom": "look_peca",
+          "tableTo": "peca",
+          "columnsFrom": [
+            "peca_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "look_peca_look_id_slot_pk": {
+          "name": "look_peca_look_id_slot_pk",
+          "columns": [
+            "look_id",
+            "slot"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.look_perfil_estilo": {
+      "name": "look_perfil_estilo",
+      "schema": "",
+      "columns": {
+        "look_id": {
+          "name": "look_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "perfil_estilo_id": {
+          "name": "perfil_estilo_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "look_perfil_estilo_look_id_look_id_fk": {
+          "name": "look_perfil_estilo_look_id_look_id_fk",
+          "tableFrom": "look_perfil_estilo",
+          "tableTo": "look",
+          "columnsFrom": [
+            "look_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "look_perfil_estilo_perfil_estilo_id_perfil_estilo_id_fk": {
+          "name": "look_perfil_estilo_perfil_estilo_id_perfil_estilo_id_fk",
+          "tableFrom": "look_perfil_estilo",
+          "tableTo": "perfil_estilo",
+          "columnsFrom": [
+            "perfil_estilo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "look_perfil_estilo_look_id_perfil_estilo_id_pk": {
+          "name": "look_perfil_estilo_look_id_perfil_estilo_id_pk",
+          "columns": [
+            "look_id",
+            "perfil_estilo_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.look_slot_trocado": {
+      "name": "look_slot_trocado",
+      "schema": "",
+      "columns": {
+        "look_id": {
+          "name": "look_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slot": {
+          "name": "slot",
+          "type": "slot",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "look_slot_trocado_look_id_look_id_fk": {
+          "name": "look_slot_trocado_look_id_look_id_fk",
+          "tableFrom": "look_slot_trocado",
+          "tableTo": "look",
+          "columnsFrom": [
+            "look_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "look_slot_trocado_look_id_slot_pk": {
+          "name": "look_slot_trocado_look_id_slot_pk",
+          "columns": [
+            "look_id",
+            "slot"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.look": {
+      "name": "look",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "capsula_id": {
+          "name": "capsula_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "clima_misto": {
+          "name": "clima_misto",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "variante_de_id": {
+          "name": "variante_de_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "look_capsula_id_capsula_id_fk": {
+          "name": "look_capsula_id_capsula_id_fk",
+          "tableFrom": "look",
+          "tableTo": "capsula",
+          "columnsFrom": [
+            "capsula_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "look_variante_de_id_look_id_fk": {
+          "name": "look_variante_de_id_look_id_fk",
+          "tableFrom": "look",
+          "tableTo": "look",
+          "columnsFrom": [
+            "variante_de_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.look_candidato_clima": {
+      "name": "look_candidato_clima",
+      "schema": "",
+      "columns": {
+        "candidato_id": {
+          "name": "candidato_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "peso_clima": {
+          "name": "peso_clima",
+          "type": "peso_clima",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "look_candidato_clima_candidato_id_look_candidato_id_fk": {
+          "name": "look_candidato_clima_candidato_id_look_candidato_id_fk",
+          "tableFrom": "look_candidato_clima",
+          "tableTo": "look_candidato",
+          "columnsFrom": [
+            "candidato_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "look_candidato_clima_candidato_id_peso_clima_pk": {
+          "name": "look_candidato_clima_candidato_id_peso_clima_pk",
+          "columns": [
+            "candidato_id",
+            "peso_clima"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.look_candidato_ocasiao_sugerida": {
+      "name": "look_candidato_ocasiao_sugerida",
+      "schema": "",
+      "columns": {
+        "candidato_id": {
+          "name": "candidato_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ocasiao": {
+          "name": "ocasiao",
+          "type": "ocasiao",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "look_candidato_ocasiao_sugerida_candidato_id_look_candidato_id_fk": {
+          "name": "look_candidato_ocasiao_sugerida_candidato_id_look_candidato_id_fk",
+          "tableFrom": "look_candidato_ocasiao_sugerida",
+          "tableTo": "look_candidato",
+          "columnsFrom": [
+            "candidato_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "look_candidato_ocasiao_sugerida_candidato_id_ocasiao_pk": {
+          "name": "look_candidato_ocasiao_sugerida_candidato_id_ocasiao_pk",
+          "columns": [
+            "candidato_id",
+            "ocasiao"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.look_candidato_peca": {
+      "name": "look_candidato_peca",
+      "schema": "",
+      "columns": {
+        "candidato_id": {
+          "name": "candidato_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slot": {
+          "name": "slot",
+          "type": "slot",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "peca_id": {
+          "name": "peca_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "look_candidato_peca_candidato_id_look_candidato_id_fk": {
+          "name": "look_candidato_peca_candidato_id_look_candidato_id_fk",
+          "tableFrom": "look_candidato_peca",
+          "tableTo": "look_candidato",
+          "columnsFrom": [
+            "candidato_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "look_candidato_peca_peca_id_peca_id_fk": {
+          "name": "look_candidato_peca_peca_id_peca_id_fk",
+          "tableFrom": "look_candidato_peca",
+          "tableTo": "peca",
+          "columnsFrom": [
+            "peca_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "look_candidato_peca_candidato_id_slot_pk": {
+          "name": "look_candidato_peca_candidato_id_slot_pk",
+          "columns": [
+            "candidato_id",
+            "slot"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.look_candidato_perfil_sugerido": {
+      "name": "look_candidato_perfil_sugerido",
+      "schema": "",
+      "columns": {
+        "candidato_id": {
+          "name": "candidato_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "perfil_estilo_id": {
+          "name": "perfil_estilo_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "look_candidato_perfil_sugerido_candidato_id_look_candidato_id_fk": {
+          "name": "look_candidato_perfil_sugerido_candidato_id_look_candidato_id_fk",
+          "tableFrom": "look_candidato_perfil_sugerido",
+          "tableTo": "look_candidato",
+          "columnsFrom": [
+            "candidato_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "look_candidato_perfil_sugerido_perfil_estilo_id_perfil_estilo_id_fk": {
+          "name": "look_candidato_perfil_sugerido_perfil_estilo_id_perfil_estilo_id_fk",
+          "tableFrom": "look_candidato_perfil_sugerido",
+          "tableTo": "perfil_estilo",
+          "columnsFrom": [
+            "perfil_estilo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "look_candidato_perfil_sugerido_candidato_id_perfil_estilo_id_pk": {
+          "name": "look_candidato_perfil_sugerido_candidato_id_perfil_estilo_id_pk",
+          "columns": [
+            "candidato_id",
+            "perfil_estilo_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.look_candidato": {
+      "name": "look_candidato",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "fingerprint": {
+          "name": "fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "look_candidato_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendente'"
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "look_candidato_fingerprint_unique": {
+          "name": "look_candidato_fingerprint_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "fingerprint"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.peca_candidato_ia_estilo": {
+      "name": "peca_candidato_ia_estilo",
+      "schema": "",
+      "columns": {
+        "candidato_id": {
+          "name": "candidato_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "perfil_estilo_id": {
+          "name": "perfil_estilo_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "peca_candidato_ia_estilo_candidato_id_peca_candidato_ia_id_fk": {
+          "name": "peca_candidato_ia_estilo_candidato_id_peca_candidato_ia_id_fk",
+          "tableFrom": "peca_candidato_ia_estilo",
+          "tableTo": "peca_candidato_ia",
+          "columnsFrom": [
+            "candidato_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "peca_candidato_ia_estilo_perfil_estilo_id_perfil_estilo_id_fk": {
+          "name": "peca_candidato_ia_estilo_perfil_estilo_id_perfil_estilo_id_fk",
+          "tableFrom": "peca_candidato_ia_estilo",
+          "tableTo": "perfil_estilo",
+          "columnsFrom": [
+            "perfil_estilo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "peca_candidato_ia_estilo_candidato_id_perfil_estilo_id_pk": {
+          "name": "peca_candidato_ia_estilo_candidato_id_perfil_estilo_id_pk",
+          "columns": [
+            "candidato_id",
+            "perfil_estilo_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.peca_candidato_ia_ocasiao_base": {
+      "name": "peca_candidato_ia_ocasiao_base",
+      "schema": "",
+      "columns": {
+        "candidato_id": {
+          "name": "candidato_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ocasiao": {
+          "name": "ocasiao",
+          "type": "ocasiao",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "peca_candidato_ia_ocasiao_base_candidato_id_peca_candidato_ia_id_fk": {
+          "name": "peca_candidato_ia_ocasiao_base_candidato_id_peca_candidato_ia_id_fk",
+          "tableFrom": "peca_candidato_ia_ocasiao_base",
+          "tableTo": "peca_candidato_ia",
+          "columnsFrom": [
+            "candidato_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "peca_candidato_ia_ocasiao_base_candidato_id_ocasiao_pk": {
+          "name": "peca_candidato_ia_ocasiao_base_candidato_id_ocasiao_pk",
+          "columns": [
+            "candidato_id",
+            "ocasiao"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.peca_candidato_ia_peso_clima": {
+      "name": "peca_candidato_ia_peso_clima",
+      "schema": "",
+      "columns": {
+        "candidato_id": {
+          "name": "candidato_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "peso_clima": {
+          "name": "peso_clima",
+          "type": "peso_clima",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "peca_candidato_ia_peso_clima_candidato_id_peca_candidato_ia_id_fk": {
+          "name": "peca_candidato_ia_peso_clima_candidato_id_peca_candidato_ia_id_fk",
+          "tableFrom": "peca_candidato_ia_peso_clima",
+          "tableTo": "peca_candidato_ia",
+          "columnsFrom": [
+            "candidato_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "peca_candidato_ia_peso_clima_candidato_id_peso_clima_pk": {
+          "name": "peca_candidato_ia_peso_clima_candidato_id_peso_clima_pk",
+          "columns": [
+            "candidato_id",
+            "peso_clima"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.peca_candidato_ia": {
+      "name": "peca_candidato_ia",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "perfil_estilo_id": {
+          "name": "perfil_estilo_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "peca_candidato_ia_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendente'"
+        },
+        "motivo_rejeicao_automatica": {
+          "name": "motivo_rejeicao_automatica",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slot": {
+          "name": "slot",
+          "type": "slot",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cor_tipo": {
+          "name": "cor_tipo",
+          "type": "cor_tipo",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cor_valor": {
+          "name": "cor_valor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "capsula_id": {
+          "name": "capsula_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "peca_chave": {
+          "name": "peca_chave",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "link_afiliado": {
+          "name": "link_afiliado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "imagem_url": {
+          "name": "imagem_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "link_origem_imagem": {
+          "name": "link_origem_imagem",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "numero_combinacoes": {
+          "name": "numero_combinacoes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "peca_id_resultante": {
+          "name": "peca_id_resultante",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "decidido_em": {
+          "name": "decidido_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "peca_candidato_ia_perfil_estilo_id_perfil_estilo_id_fk": {
+          "name": "peca_candidato_ia_perfil_estilo_id_perfil_estilo_id_fk",
+          "tableFrom": "peca_candidato_ia",
+          "tableTo": "perfil_estilo",
+          "columnsFrom": [
+            "perfil_estilo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "peca_candidato_ia_capsula_id_capsula_id_fk": {
+          "name": "peca_candidato_ia_capsula_id_capsula_id_fk",
+          "tableFrom": "peca_candidato_ia",
+          "tableTo": "capsula",
+          "columnsFrom": [
+            "capsula_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "peca_candidato_ia_peca_id_resultante_peca_id_fk": {
+          "name": "peca_candidato_ia_peca_id_resultante_peca_id_fk",
+          "tableFrom": "peca_candidato_ia",
+          "tableTo": "peca",
+          "columnsFrom": [
+            "peca_id_resultante"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.busca_ia_observacao": {
+      "name": "busca_ia_observacao",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "texto": {
+          "name": "texto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.cor_tipo": {
+      "name": "cor_tipo",
+      "schema": "public",
+      "values": [
+        "neutra",
+        "destaque"
+      ]
+    },
+    "public.ocasiao": {
+      "name": "ocasiao",
+      "schema": "public",
+      "values": [
+        "trabalho",
+        "lazer",
+        "casa",
+        "treino",
+        "evento"
+      ]
+    },
+    "public.peso_clima": {
+      "name": "peso_clima",
+      "schema": "public",
+      "values": [
+        "leve",
+        "meia_estacao",
+        "pesada"
+      ]
+    },
+    "public.slot": {
+      "name": "slot",
+      "schema": "public",
+      "values": [
+        "parte_de_cima",
+        "parte_de_baixo",
+        "peca_unica",
+        "calcado",
+        "sobreposicao",
+        "cinto",
+        "bolsa",
+        "acessorio_outro"
+      ]
+    },
+    "public.look_candidato_status": {
+      "name": "look_candidato_status",
+      "schema": "public",
+      "values": [
+        "pendente",
+        "aprovado",
+        "reprovado"
+      ]
+    },
+    "public.peca_candidato_ia_status": {
+      "name": "peca_candidato_ia_status",
+      "schema": "public",
+      "values": [
+        "pendente",
+        "aprovado",
+        "rejeitado",
+        "desfeito"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

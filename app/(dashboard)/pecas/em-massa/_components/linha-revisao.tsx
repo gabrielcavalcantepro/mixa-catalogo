@@ -11,6 +11,7 @@ import {
 } from "../../_lib/schema";
 import type { PecaFormValuesBruto } from "../_lib/planilha";
 import { ImagemUploaderLinha } from "./imagem-uploader-linha";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,11 @@ export type LinhaEstado = {
   valores: PecaFormValuesBruto;
   erro?: string;
   imagens: File[];
+  /** Presente quando a linha veio da busca por IA (pecas-ia/), não da planilha. */
+  origemCandidatoId?: string;
+  imagemExistente?: { url: string; linkOrigem: string | null } | null;
+  /** Nº de combinações que essa peça geraria no catálogo atual — só da busca por IA. */
+  numeroCombinacoes?: number;
 };
 
 function alternarNaLista(lista: string[], valor: string, marcado: boolean): string[] {
@@ -57,7 +63,12 @@ export function LinhaRevisao({
       <div className="flex items-start justify-between gap-4">
         <div className="grid flex-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1">
-            <Label>Nome</Label>
+            <Label className="flex items-center gap-2">
+              Nome
+              {linha.numeroCombinacoes !== undefined && (
+                <Badge variant="secondary">{linha.numeroCombinacoes} combinações possíveis</Badge>
+              )}
+            </Label>
             <Input value={linha.valores.nome} onChange={(e) => onChange({ nome: e.target.value })} />
           </div>
 
@@ -225,7 +236,11 @@ export function LinhaRevisao({
         </div>
       </fieldset>
 
-      <ImagemUploaderLinha arquivos={linha.imagens} onChange={onChangeImagens} />
+      <ImagemUploaderLinha
+        arquivos={linha.imagens}
+        imagemExistente={linha.imagemExistente}
+        onChange={onChangeImagens}
+      />
 
       {linha.erro && <p className="text-sm text-destructive">{linha.erro}</p>}
     </div>
